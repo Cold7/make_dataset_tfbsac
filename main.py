@@ -182,7 +182,7 @@ if __name__=="__main__":
 			tempFilenames.append(args.tmp+"/yy1_"+ID)
 			f = open(args.tmp+"/yy1_"+ID,"w")
 			f.write("yy1\n")
-			for i in methylation:
+			for i in yy1:
 				f.write(str(i)+"\n")
 			f.close()
 			del(yy1)					
@@ -218,4 +218,6 @@ if __name__=="__main__":
 		exit()
 
 
-#python3 main.py -g genome.fasta -ds -dsf ./encode_K562/DNase-seq/ -dsfm percentage -dm -dname encode_K562/WGBS/ -dmfm percentage -hm -hmf ./encode_K562/HM/ -hmfm percentage -tf ./encode_K562/ChIP-seq/ -ff ./encode_K562/motifs/ --yy1 -yfolder ./encode_K562/ctcf_like/YY1/ --ctcf -cfolder ./encode_K562/ctcf_like/CTCF
+#python3 main.py -g genome.fasta -ds -dsf ./encode_K562/DNase-seq/ -dsfm percentage -dm -dname encode_K562/WGBS/ -dmfm percentage -hm -hmf ./encode_K562/HM/ -hmfm percentage -tf ./encode_K562/ChIP-seq/ -ff ./encode_K562/motifs/ --yy1 -yfolder ./encode_K562/ctcf_like/YY1/ -yfm percentage --ctcf -cfolder ./encode_K562/ctcf_like/CTCF/ -cfm percentage
+
+
