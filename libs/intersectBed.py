@@ -38,7 +38,6 @@ def intersection(files, Chr):
 		return dfFinal
 		
 def intersect(path_with_features, Chr):
-
 	bedFiles = glob(path_with_features+"/*.bed")
-	dfFinal = intersect(bedFiles, Chr)
+	dfFinal = intersection(bedFiles, Chr)
 	return dfFinal

@@ -7,7 +7,6 @@ import numpy as np
 
 def getFeatures(folder, filling_mode, fragmentSize, percentage, genome, currentCHR):
 	data = fullVector(genome, currentCHR)
-
 	features = intersect(folder, currentCHR)
 	#marking position where the characteristic is present
 	for index, row in features.iterrows():
@@ -40,7 +39,7 @@ def getFeatures(folder, filling_mode, fragmentSize, percentage, genome, currentC
 	return DNAfragment
 
 
-def getTFBSac(tfDict, fimo_folder, fimo_filter, genome, currentCHR, fragmentSize, percentage):
+def getTFBSac(tfDict, fimo_folder, fimo_filter, genome, currentCHR, fragmentSize, percentage, filling_mode):
 	dataTFBSac = fullVector(genome, currentCHR)
 	print("we need to change this in function of the TFBM DB used")
 	motifFound = []
@@ -80,11 +79,42 @@ def getTFBSac(tfDict, fimo_folder, fimo_filter, genome, currentCHR, fragmentSize
 			features = intersection(tf[1], currentCHR)
 			#marking position where the characteristic is present
 			for index, row in features.iterrows():
-				if row["rep"] == 100 and len(tf[1])==2:
+				if row["rep"] == 100:
 					init = int(row['pos1']) - 1 # -1 because the count start from 0 and not for 1
 					end = int(row['pos2']) - 1
+					if percentage >= row['rep']:
+						while init < end:
+							dataChIP[init] = 1
+							init += 1
 				
 			#definition of tfbs active or inactive due the presence or ausence of chip data into the current motif			
+			for i in range(len(dataTFBM)):
+				#if in dataTFBM and in dataChIP in the same position there exist a mark, there will we an TFBSactive
+				if dataTFBM[i] == 1 and dataChIP[i] == 1:
+					dataTFBSac[i] = 1
+				if dataTFBM[i] == 1 and dataChIP[i] == 0:
+					if dataTFBSac[i] != 1:
+						dataTFBSac[i] == -1
 			
+	DNAfragment = generateDNAFragments(genome, fragmentSize, currentCHR)
 	
-	return []
+	#filling DNAfragment
+	for i in range(len(dataTFBSac)):
+		pos = abs(int(i/fragmentSize))
+		DNAfragment[pos] += dataTFBSac[i]
+
+
+	if filling_mode != "binary":
+		if filling_mode == "normalize":
+			for i in range(len(DNAfragment)):
+				DNAfragment[i] = 1 - (1/(1 + DNAfragment[i]))
+		if filling_mode == "percentage":
+			for i in range(len(DNAfragment)):
+				DNAfragment[i] = DNAfragment[i]/fragmentSize
+	else:#binary case
+		for i in range(len(DNAfragment)):
+			if DNAfragment[i] > 0:
+				DNAfragment[i] = 1
+			if DNAfragment[i] < 0:
+				DNAfragment[i] = -1
+	return DNAfragment
