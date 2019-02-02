@@ -12,6 +12,7 @@ import random
 sys.path.append(str(os.path.realpath(__file__))[:-8]+"/libs")
 from getFeatures import getFeatures
 from getFeatures import getTFBSac
+from getFeatures import getGeneFeatures
 from save import saveDataset
 
 if __name__=="__main__":
@@ -67,8 +68,18 @@ if __name__=="__main__":
 	####################################
 	parser.add_argument("-hm","--histonemarks",help="Option to generate features for histone marks.", action="store_true")
 	parser.add_argument("-hmf","--histoneMarksFolder", help="Folder where histone marks ChIP-seq results (in bed file) are located.")
-	parser.add_argument("-hmfm","--histoneMarks_filling_mode", help="If you wish your data in  binary (is or not present) or in number (number of the characteristic). Options are \"binary\", \"normalize\"  or \"decimal\". Default: binary", default="binary")
-	#parser.add_argument("-hmbt","--histoneMarks_by_type", help="If you wish to get all histone marks in one vector or different vector of informations for histone mark. Options are together  or unique. Default: unique", default="unique")
+	parser.add_argument("-hmfm","--histoneMarks_filling_mode", help="If you wish your data in  binary (is or not present) or in number (number of the characteristic). Options are \"binary\", \"normalize\",  \"percentage\"  or \"decimal\". Default: binary", default="binary")
+
+	####################################
+	##
+	## Gene arguments
+	##
+	####################################
+	parser.add_argument("-G","--gene",help="Option to generate gene features", action="store_true")
+	parser.add_argument("-gfm","--gene_filling_mode", help="If you wish your data in  binary (is or not present) or in number (number of the characteristic). Options are \"binary\", \"normalize\", \"percentage\" or \"decimal\". Default: binary", default="binary")
+	parser.add_argument("-gtf","--gtf_file",help="path to gtf file.")
+	parser.add_argument("-rf","--RNASeqFolder", help="Folder where rnaseq-seq results (in bed file) are located.")
+	parser.add_argument("-rfm","--rnaseq_filling_mode", help="If you wish your data in  binary (is or not present) or in number (number of the characteristic). Options are \"binary\", \"normalize\", \"percentage\"  or \"decimal\". Default: binary", default="binary")
 
 	####################################
 	##
@@ -77,10 +88,12 @@ if __name__=="__main__":
 	####################################
 	parser.add_argument("-tf","--tf_folder", help="Folder where tf subfolders with ChIP-seq results (in bed file) are located.", required = True)
 	parser.add_argument("-tft","--tf_type", help="Type of tf result. Values can be \"optimal\" or \"conservative\". Default: optimal", default="optimal")
-	parser.add_argument("-ff", "--fimo_folder", help="Path to fimo folder. this folder have a subfolder for each chromosome, and in that subfolder is placed the fimo.txt result", required = True)
-	parser.add_argument("-ffi","--fimo_filter", help="Number equal or higher of motifs in the database to consider it as a motif. Default: 20", default=20, type=int)
+	parser.add_argument("-ff", "--fimo_folder", help="Path to fimo folder. this folder have a subfolder for each chromosome, and in that subfolder is placed the fimo.txt result")
+	parser.add_argument("-ffi","--fimo_filter", help="Number equal or higher of motifs in the database to consider it as a motif. Default: 20", default = 20, type=int)
+	parser.add_argument("-ens", "--ensembl_gff", help="Ensembl gff file with regulatory regions")
+	parser.add_argument("-pt", "--positive_threshold", help="for binary class, percentage to consider a positive class (TFBS active). default 0.3", default = 0.3, type=float)
+	parser.add_argument("-nt", "--negative_threshold", help="for binary class, percentage to consider a negative class (TFBS inactive). default -0.3", default = -0.3, type=float)
 	parser.add_argument("-TFBSacfm","--TFBSac_filling_mode", help="If you wish your data in  binary (is or not present) or in number (number of the characteristic). Options are \"binary\", \"normalize\"  or \"decimal\". Default: binary", default="binary")
-
 
 	#parsing arguments
 	args = parser.parse_args()
@@ -96,8 +109,7 @@ if __name__=="__main__":
 		exit()
 	#for each chr
 	for record in SeqIO.parse(args.genome, "fasta"):
-		
-		currentCHR = "chr"+record.id
+		currentCHR = record.id
 		currentCHR = "chr20" #delete or comment this line  for full dataset creation toghether with the exit line at the end of the script
 		############################################
 		##
@@ -137,87 +149,115 @@ if __name__=="__main__":
 		##
 		###################################
 
-		#for dnase
-		DNase = None
-		if args.DNase:
-			print("DNAse on chr", currentCHR)
-			DNase = getFeatures(args.DNase_folder, args.DNase_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)		
-			tempFilenames.append(args.tmp+"/DNase_"+ID)
-			f = open(args.tmp+"/DNase_"+ID,"w")
-			f.write("DNase\n")
-			for i in DNase:
-				f.write(str(i)+"\n")
-			f.close()
-			del(DNase)
-
-		methylation = None
-		#for dna methylation
-		if args.dna_methylation:
-			print("methylation on chr", currentCHR)
-			methylation = getFeatures(args.methylation_Folder, args.DNA_meth_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
-			tempFilenames.append(args.tmp+"/methylation_"+ID)
-			f = open(args.tmp+"/methylation_"+ID,"w")
-			f.write("methylation\n")
-			for i in methylation:
-				f.write(str(i)+"\n")
-			f.close()
-			del(methylation)
-
-		#for ctcf
-		if args.ctcf:
-			print("ctcf for chr", currentCHR)
-			ctcf = getFeatures(args.ctcf_Folder, args.ctcf_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
-			tempFilenames.append(args.tmp+"/ctcf_"+ID)
-			f = open(args.tmp+"/ctcf_"+ID,"w")
-			f.write("ctcf\n")
-			for i in ctcf:
-				f.write(str(i)+"\n")
-			f.close()
-			del(ctcf)
-			
-		#for yy1
-		if args.yy1:
-			print("yy1 for chr", currentCHR)
-			yy1 = getFeatures(args.yy1_Folder, args.yy1_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
-			tempFilenames.append(args.tmp+"/yy1_"+ID)
-			f = open(args.tmp+"/yy1_"+ID,"w")
-			f.write("yy1\n")
-			for i in yy1:
-				f.write(str(i)+"\n")
-			f.close()
-			del(yy1)					
-			
-		#for histone marks
-		if args.histonemarks:
-			print("histones on chr", currentCHR)
-			for HMfolder in glob(args.histoneMarksFolder+"/*"):
-				print("\tusing", HMfolder)
-				histone_mark = getFeatures(HMfolder, args.histoneMarks_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
-				tempFilenames.append(args.tmp+"/"+HMfolder.split("/")[-1]+"_"+ID)
-				f = open(args.tmp+"/"+HMfolder.split("/")[-1]+"_"+ID,"w")
-				f.write(HMfolder.split("/")[-1]+"\n")
-				for i in histone_mark:
-					f.write(str(i)+"\n")
-				f.close()
-				del(histone_mark)
+#		#for dnase
+#		DNase = None
+#		if args.DNase:
+#			print("DNAse on chr", currentCHR)
+#			DNase = getFeatures(args.DNase_folder, args.DNase_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)		
+#			tempFilenames.append(args.tmp+"/DNase_"+ID)
+#			f = open(args.tmp+"/DNase_"+ID,"w")
+#			f.write("DNase\n")
+#			for i in DNase:
+#				f.write(str(i)+"\n")
+#			f.close()
+#			del(DNase)
+#
+#		methylation = None
+#		#for dna methylation
+#		if args.dna_methylation:
+#			print("methylation on chr", currentCHR)
+#			methylation = getFeatures(args.methylation_Folder, args.DNA_meth_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
+#			tempFilenames.append(args.tmp+"/methylation_"+ID)
+#			f = open(args.tmp+"/methylation_"+ID,"w")
+#			f.write("methylation\n")
+#			for i in methylation:
+#				f.write(str(i)+"\n")
+#			f.close()
+#			del(methylation)
+#
+#		#for ctcf
+#		if args.ctcf:
+#			print("ctcf for chr", currentCHR)
+#			ctcf = getFeatures(args.ctcf_Folder, args.ctcf_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
+#			tempFilenames.append(args.tmp+"/ctcf_"+ID)
+#			f = open(args.tmp+"/ctcf_"+ID,"w")
+#			f.write("ctcf\n")
+#			for i in ctcf:
+#				f.write(str(i)+"\n")
+#			f.close()
+#			del(ctcf)
+#			
+#		#for yy1
+#		if args.yy1:
+#			print("yy1 for chr", currentCHR)
+#			yy1 = getFeatures(args.yy1_Folder, args.yy1_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
+#			tempFilenames.append(args.tmp+"/yy1_"+ID)
+#			f = open(args.tmp+"/yy1_"+ID,"w")
+#			f.write("yy1\n")
+#			for i in yy1:
+#				f.write(str(i)+"\n")
+#			f.close()
+#			del(yy1)					
+#			
+#		#for histone marks
+#		if args.histonemarks:
+#			print("histones on chr", currentCHR)
+#			for HMfolder in glob(args.histoneMarksFolder+"/*"):
+#				print("\tusing", HMfolder)
+#				histone_mark = getFeatures(HMfolder, args.histoneMarks_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
+#				tempFilenames.append(args.tmp+"/"+HMfolder.split("/")[-1]+"_"+ID)
+#				f = open(args.tmp+"/"+HMfolder.split("/")[-1]+"_"+ID,"w")
+#				f.write(HMfolder.split("/")[-1]+"\n")
+#				for i in histone_mark:
+#					f.write(str(i)+"\n")
+#				f.close()
+#				del(histone_mark)
+		
+		#for gene data
+#		if args.gene:
+#			print("gene data for chr", currentCHR)
+#			gene, expression = getGeneFeatures(args.gtf_file, args.RNASeqFolder, args.gene_filling_mode, args.fragment_size, args.percentage, args.genome, currentCHR)
+#			tempFilenames.append(args.tmp+"/gene_"+ID)
+#			f = open(args.tmp+"/gene_"+ID,"w")
+#			f.write("gene\n")
+#			for i in gene:
+#				f.write(str(i)+"\n")
+#			f.close()
+#			del(gene)			
+#
+#			tempFilenames.append(args.tmp+"/expression_"+ID)
+#			f = open(args.tmp+"/expression_"+ID,"w")
+#			f.write("expression\n")
+#			for i in expression:
+#				f.write(str(i)+"\n")
+#			f.close()
+#			del(expression)				
 
 		#for active TFBS
 		if args.tf_folder and args.fimo_folder:
 			print("TFBSac on chr", currentCHR)
-			TFBSac = getTFBSac(tfDict, args.fimo_folder, args.fimo_filter, args.genome, currentCHR, args.fragment_size, args.percentage, args.TFBSac_filling_mode)
-			tempFilenames.append(args.tmp+"/TFBSac_"+ID)
-			f = open(args.tmp+"/TFBSac_"+ID,"w")
+			TFBSac_fimo, TFBSac_ensembl = getTFBSac(tfDict, args.fimo_folder, args.fimo_filter, args.genome, currentCHR, args.fragment_size, args.percentage, args.TFBSac_filling_mode, args.ensembl_gff, args.positive_threshold, args.negative_threshold)
+			tempFilenames.append(args.tmp+"/TFBSac_fimo_"+ID)
+			f = open(args.tmp+"/TFBSac_fimo_"+ID,"w")
 			f.write("TFBSac\n")
-			for i in TFBSac:
+			for i in TFBSac_fimo:
 				f.write(str(i)+"\n")
 			f.close()
-			del(TFBSac)
-		print("saving chr", currentCHR)	
-		saveDataset(tempFilenames, args.output)
-		print("exiting (you need to remove and change chr in order to continue)")
+			del(TFBSac_fimo)
+			tempFilenames.append(args.tmp+"/TFBSac_ensembl_"+ID)
+			f = open(args.tmp+"/TFBSac_ensembl_"+ID,"w")
+			f.write("TFBSac\n")
+			for i in TFBSac_ensembl:
+				f.write(str(i)+"\n")
+			f.close()
+			del(TFBSac_ensembl)
+#		print("saving chr", currentCHR)	
+#		saveDataset(tempFilenames, args.output)
+#		print("exiting (you need to remove and change chr in order to continue)")
 		exit()
 
 
-#python3 main.py -g genome.fasta -ds -dsf ./encode_K562/DNase-seq/ -dsfm percentage -dm -dname encode_K562/WGBS/ -dmfm percentage -hm -hmf ./encode_K562/HM/ -hmfm percentage -tf ./encode_K562/ChIP-seq/ -ff ./encode_K562/motifs/ --yy1 -yfolder ./encode_K562/ctcf_like/YY1/ -yfm percentage --ctcf -cfolder ./encode_K562/ctcf_like/CTCF/ -cfm percentage
+#python3 main.py -g ./GRCh38_no_alt_analysis_set_GCA_000001405.15.fasta -ds -dsf ./encode_K562/DNase-seq/ -dsfm percentage -dm -dname ./encode_K562/WGBS/ -dmfm percentage -hm -hmf ./encode_K562/HM/ -hmfm percentage -tf ./encode_K562/ChIP-seq/ -ff ./encode_K562/motifs/ --yy1 -yfolder ./encode_K562/ctcf_like/YY1/ -yfm percentage --ctcf -cfolder ./encode_K562/ctcf_like/CTCF/ -cfm percentage --gene -gfm percentage --gtf_file ./ENCFF824ZKD.gtf -rf ./encode_K562/polyA\ RNA-seq/genes/
+
 
 

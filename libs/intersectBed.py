@@ -29,7 +29,6 @@ def intersection(files, Chr):
 					previous = [row["col1"],row["col2"],1]
 			else:
 				previous = [row["col1"],row["col2"],1]
-	
 		finalData["pos1"].append(previous[0])
 		finalData["pos2"].append(previous[1])
 		finalData["rep"].append((previous[2]/len(bedFiles))*100)
